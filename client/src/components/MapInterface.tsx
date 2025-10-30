@@ -185,6 +185,10 @@ export function MapInterface() {
     return null;
   }
 
+  // Narrow typing workaround: react-leaflet types in this setup omit certain props like `center`.
+  // Render through a loosely-typed component to avoid spurious TS errors while keeping runtime behavior.
+  const MapContainerLoose = MapContainer as unknown as React.ComponentType<Record<string, unknown>>;
+
   return (
     <section className="py-20 bg-secondary/30">
       <div className="container mx-auto px-4">
@@ -202,9 +206,7 @@ export function MapInterface() {
             {/* Map with drawing */}
             <Card className="lg:col-span-2 p-4 bg-card">
               <div className="aspect-video rounded-lg border-2 border-dashed border-border relative overflow-hidden">
-                {/* @ts-ignore: react-leaflet types mismatch in current tooling, runtime is fine */}
-                <MapContainer center={center} zoom={2} style={{ height: '100%', width: '100%' }}>
-                  {/* @ts-ignore: react-leaflet types mismatch in current tooling, runtime is fine */}
+                <MapContainerLoose center={center} zoom={2} style={{ height: '100%', width: '100%' }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <ClickHandler />
                   {/* show drawing polygon: include tempPoint to give rubberband while drawing */}
@@ -217,7 +219,7 @@ export function MapInterface() {
                       pathOptions={{ dashArray: '6', color: '#34d399' }}
                     />
                   )}
-                </MapContainer>
+                </MapContainerLoose>
                 <div className="absolute top-3 left-3 z-[9999] space-x-2 pointer-events-auto">
                   {!drawing ? (
                     <Button size="sm" onClick={startDrawing}>Start Drawing</Button>

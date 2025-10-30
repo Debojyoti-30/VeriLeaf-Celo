@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import * as React from 'react';
+import { useEffect, useRef } from 'react';
 import { Renderer, Program, Mesh, Triangle, Texture } from 'ogl';
 import './PrismaticBurst.css';
 
@@ -242,6 +243,7 @@ const PrismaticBurst = ({
   const isVisibleRef = useRef<boolean>(true);
   const meshRef = useRef<Mesh | null>(null);
   const triRef = useRef<Triangle | null>(null);
+  const minFrameIntervalRef = useRef<number>(1000 / Math.max(1, Math.min(60, maxFps)));
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -268,8 +270,9 @@ const PrismaticBurst = ({
     gl.canvas.style.position = 'absolute';
     gl.canvas.style.inset = '0';
     gl.canvas.style.width = '100%';
-    gl.canvas.style.height = '100%';
-    gl.canvas.style.mixBlendMode = mixBlendMode && mixBlendMode !== 'none' ? mixBlendMode : '';
+  gl.canvas.style.height = '100%';
+  // mixBlendMode handled in a separate effect reacting to prop changes
+  gl.canvas.style.mixBlendMode = '';
     container.appendChild(gl.canvas);
 
     const white = new Uint8Array([255, 255, 255, 255]);
@@ -354,9 +357,8 @@ const PrismaticBurst = ({
     let raf = 0;
     let last = performance.now();
     let accumTime = 0;
-    // throttle rendering to maxFps to reduce CPU/GPU usage when the effect is heavy
-    const minFrameInterval = 1000 / Math.max(1, Math.min(60, maxFps));
-    let lastRenderTime = performance.now();
+  // throttle rendering to maxFps to reduce CPU/GPU usage when the effect is heavy
+  let lastRenderTime = performance.now();
 
     const update = (now: number) => {
       const dtMs = Math.max(0, now - last);
@@ -374,11 +376,11 @@ const PrismaticBurst = ({
       const sm = mouseSmoothRef.current;
       sm[0] += (tgt[0] - sm[0]) * alpha;
       sm[1] += (tgt[1] - sm[1]) * alpha;
-      program.uniforms.uMouse.value = sm as any;
+  program.uniforms.uMouse.value = [sm[0], sm[1]];
       program.uniforms.uTime.value = accumTime;
 
       // Only render if enough time has elapsed since last render
-      if (now - lastRenderTime >= minFrameInterval) {
+      if (now - lastRenderTime >= minFrameIntervalRef.current) {
         try {
           renderer.render({ scene: meshRef.current! });
         } catch (e) {
@@ -421,6 +423,11 @@ const PrismaticBurst = ({
       triRef.current = null;
     };
   }, []);
+
+  // Update render throttle interval when maxFps changes without recreating the effect
+  useEffect(() => {
+    minFrameIntervalRef.current = 1000 / Math.max(1, Math.min(60, maxFps));
+  }, [maxFps]);
 
   useEffect(() => {
     const canvas = rendererRef.current?.gl?.canvas as HTMLCanvasElement | undefined;

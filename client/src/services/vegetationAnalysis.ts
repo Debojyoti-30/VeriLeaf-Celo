@@ -58,6 +58,8 @@ export interface AnalysisRequest {
   after_path: string;
 }
 
+export type MetricsInfo = Record<string, unknown>;
+
 class VegetationAnalysisService {
   private baseUrl: string;
 
@@ -142,7 +144,7 @@ class VegetationAnalysisService {
   /**
    * Get available metrics information
    */
-  async getMetricsInfo(): Promise<any> {
+  async getMetricsInfo(): Promise<MetricsInfo> {
     try {
       const response = await fetch(`${this.baseUrl}/metrics`);
 
