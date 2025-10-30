@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Scan, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { ImpactResults } from "@/components/ImpactResults";
+import { vegetationAnalysisService, type AnalysisResults } from "@/services/vegetationAnalysis";
 
 // Leaflet / React-Leaflet
 import { MapContainer, TileLayer, useMapEvents, Polygon } from 'react-leaflet';
@@ -24,13 +25,16 @@ export function MapInterface() {
   const [afterDate, setAfterDate] = useState<string>('2025-10-01');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [aiResults, setAiResults] = useState<AnalysisResults | null>(null);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!geoJsonFeature) {
       // nothing to analyze
       return;
     }
     setIsAnalyzing(true);
+    setShowResults(false);
+    setAiResults(null);
 
     const payload = {
       geojson: geoJsonFeature,
@@ -38,28 +42,40 @@ export function MapInterface() {
       afterDate,
       windowDays: 14 // 15-day windows roughly
     };
+    try {
+      const r = await fetch('http://localhost:4000/api/sentinel/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const data: AnalysisResult = await r.json();
 
-    fetch('http://localhost:4000/api/sentinel/process', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(await r.text());
-        return r.json();
-      })
-      .then((data) => {
-        // Store the analysis results instead of opening blob URLs
-        setAnalysisResult(data);
-        setShowResults(true);
-      })
-      .catch((e) => {
-        // show error
+      // Save imagery response from Sentinel server
+      setAnalysisResult(data);
+
+      // Call AI pipeline to compute real vegetation indices using saved file paths
+      try {
+        const results = await vegetationAnalysisService.analyzeVegetationByPaths({
+          // Prefer the absolute paths returned by the server; fallback to deterministic names
+          before_path: data.beforePath || 'before.jpg',
+          after_path: data.afterPath || 'after.jpg',
+        });
+        setAiResults(results);
+      } catch (aiErr) {
         // eslint-disable-next-line no-console
-        console.error('Analysis failed', e);
-        alert('Analysis failed: ' + e);
-      })
-      .finally(() => setIsAnalyzing(false));
+        console.error('AI analysis failed:', aiErr);
+        alert('AI analysis failed. Please ensure the AI server is running on port 5000.');
+      }
+
+      setShowResults(true);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Analysis failed', e);
+      alert('Analysis failed: ' + e);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const startDrawing = () => {
@@ -186,11 +202,10 @@ export function MapInterface() {
             {/* Map with drawing */}
             <Card className="lg:col-span-2 p-4 bg-card">
               <div className="aspect-video rounded-lg border-2 border-dashed border-border relative overflow-hidden">
+                {/* @ts-ignore: react-leaflet types mismatch in current tooling, runtime is fine */}
                 <MapContainer center={center} zoom={2} style={{ height: '100%', width: '100%' }}>
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
+                  {/* @ts-ignore: react-leaflet types mismatch in current tooling, runtime is fine */}
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <ClickHandler />
                   {/* show drawing polygon: include tempPoint to give rubberband while drawing */}
                   {points.length > 0 && (
@@ -313,6 +328,7 @@ export function MapInterface() {
           analysisData={analysisResult}
           areaKm2={areaKm2}
           timeRangeMonths={timeRangeMonths}
+          aiResults={aiResults || undefined}
         />
       )}
     </section>

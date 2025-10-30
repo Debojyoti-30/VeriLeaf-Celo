@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Award, CheckCircle2, Leaf, Download } from "lucide-react";
+import { vegetationAnalysisService, type AnalysisResults } from "@/services/vegetationAnalysis";
 
 interface AnalysisData {
   before: string;
@@ -14,25 +15,40 @@ interface ImpactResultsProps {
   analysisData: AnalysisData;
   areaKm2: number;
   timeRangeMonths: number;
+  aiResults?: AnalysisResults;
 }
 
-export function ImpactResults({ analysisData, areaKm2, timeRangeMonths }: ImpactResultsProps) {
-  // Calculate deterministic metrics based on the analysis data
-  // Using a simple hash of the before/after data to create consistent results
-  const dataHash = analysisData.before.slice(0, 10) + analysisData.after.slice(0, 10);
-  const seed = dataHash.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  
-  // Generate consistent pseudo-random values based on the seed
-  const pseudoRandom = (min: number, max: number) => {
-    const normalized = (Math.sin(seed) + 1) / 2; // Normalize to 0-1
-    return min + (max - min) * normalized;
-  };
-  
-  const ndviChange = pseudoRandom(5, 25); // Value between 5-25%
-  const impactScore = Math.floor(pseudoRandom(70, 100)); // Score between 70-100
-  const confidence = Math.floor(pseudoRandom(80, 100)); // Confidence between 80-100%
-  const vegetationGain = ndviChange * 0.8; // Proportional to NDVI change
-  const co2Offset = Math.floor(areaKm2 * 300); // Rough estimate: 300 tons per km²
+export function ImpactResults({ analysisData, areaKm2, timeRangeMonths, aiResults }: ImpactResultsProps) {
+  // Prefer real AI results when available, otherwise fall back to legacy pseudo values
+  let ndviChange: number;
+  let impactScore: number;
+  let confidence: number;
+  let vegetationGain: number;
+  let co2Offset: number;
+
+  if (aiResults) {
+    ndviChange = aiResults.impact_analysis.ndvi_change_percent;
+    impactScore = aiResults.impact_analysis.impact_score;
+    confidence = aiResults.impact_analysis.confidence;
+    // Use FVC change as a proxy for vegetation gain if present; otherwise tie to NDVI
+    vegetationGain = (aiResults.impact_analysis.fvc_change_percent ?? ndviChange * 0.8);
+    co2Offset = Math.round(
+      vegetationAnalysisService.calculateCO2Offset(impactScore, Math.max(areaKm2, 0))
+    );
+  } else {
+    // Backward-compatible pseudo metrics (will be replaced by real ones once AI is available)
+    const dataHash = analysisData.before.slice(0, 10) + analysisData.after.slice(0, 10);
+    const seed = dataHash.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const pseudoRandom = (min: number, max: number) => {
+      const normalized = (Math.sin(seed) + 1) / 2;
+      return min + (max - min) * normalized;
+    };
+    ndviChange = pseudoRandom(5, 25);
+    impactScore = Math.floor(pseudoRandom(70, 100));
+    confidence = Math.floor(pseudoRandom(80, 100));
+    vegetationGain = ndviChange * 0.8;
+    co2Offset = Math.floor(areaKm2 * 300);
+  }
 
   const downloadReport = () => {
     // Create a simple text report
@@ -63,30 +79,25 @@ This analysis was performed using Sentinel-2 satellite imagery and verified thro
   };
 
   const downloadImages = () => {
-    // Download the before image
-    if (analysisData.before) {
-      const beforeBlob = new Blob([Uint8Array.from(atob(analysisData.before), c => c.charCodeAt(0))], { type: 'image/jpeg' });
-      const beforeUrl = URL.createObjectURL(beforeBlob);
-      const beforeLink = document.createElement('a');
-      beforeLink.href = beforeUrl;
-      beforeLink.download = 'before-analysis.jpg';
-      document.body.appendChild(beforeLink);
-      beforeLink.click();
-      beforeLink.remove();
-      URL.revokeObjectURL(beforeUrl);
-    }
+    // Prefer AI results' data URLs; fallback to raw base64 from sentinel-server
+    const beforeDataUrl = aiResults?.before_image || (analysisData.before ? `data:image/jpeg;base64,${analysisData.before}` : null);
+    const afterDataUrl = aiResults?.after_image || (analysisData.after ? `data:image/jpeg;base64,${analysisData.after}` : null);
 
-    // Download the after image
-    if (analysisData.after) {
-      const afterBlob = new Blob([Uint8Array.from(atob(analysisData.after), c => c.charCodeAt(0))], { type: 'image/jpeg' });
-      const afterUrl = URL.createObjectURL(afterBlob);
-      const afterLink = document.createElement('a');
-      afterLink.href = afterUrl;
-      afterLink.download = 'after-analysis.jpg';
-      document.body.appendChild(afterLink);
-      afterLink.click();
-      afterLink.remove();
-      URL.revokeObjectURL(afterUrl);
+    if (beforeDataUrl) {
+      const a = document.createElement('a');
+      a.href = beforeDataUrl;
+      a.download = 'before-analysis.jpg';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    if (afterDataUrl) {
+      const a = document.createElement('a');
+      a.href = afterDataUrl;
+      a.download = 'after-analysis.jpg';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     }
   };
   return (
@@ -110,8 +121,10 @@ This analysis was performed using Sentinel-2 satellite imagery and verified thro
                   <span className="text-white/80 text-sm font-medium">NDVI Change</span>
                   <TrendingUp className="h-5 w-5 text-white/90" />
                 </div>
-                <div className="text-4xl font-['Space_Grotesk'] font-bold">+{ndviChange.toFixed(1)}%</div>
-                <p className="text-white/70 text-sm">Significant vegetation improvement</p>
+                <div className="text-4xl font-['Space_Grotesk'] font-bold">{ndviChange >= 0 ? '+' : ''}{ndviChange.toFixed(1)}%</div>
+                <p className="text-white/70 text-sm">
+                  {ndviChange >= 0 ? 'Vegetation improvement detected' : 'Vegetation decline detected'}
+                </p>
               </div>
             </Card>
 

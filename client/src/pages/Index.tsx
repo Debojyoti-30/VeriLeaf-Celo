@@ -3,7 +3,7 @@ import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
 import { MapInterface } from "@/components/MapInterface";
-import { ImpactResults } from "@/components/ImpactResults";
+// ImpactResults is shown inside the MapInterface when analysis completes
 import { Footer } from "@/components/Footer";
 import PrismaticBurst from "@/components/PrismaticBurst";
 
@@ -32,8 +32,7 @@ const Index = () => {
         <Hero />
         <HowItWorks />
         <Features />
-        <MapInterface />
-        <ImpactResults />
+  <MapInterface />
         <Footer />
       </div>
     </div>
