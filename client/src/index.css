@@ -91,7 +91,6 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
-    cursor: none;
   }
 
   body {
@@ -99,6 +98,6 @@ All colors MUST be HSL.
   }
 
   a, button, input, textarea, select {
-    cursor: none;
+    cursor: auto;
   }
 }

@@ -2,6 +2,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Award, CheckCircle2, Leaf, Download } from "lucide-react";
+import { useAccount, useWriteContract, useChainId } from "wagmi";
+import { CLAIMS_ABI } from "@/contracts/abis/Claims";
+import { CLAIMS_CONTRACT_ADDRESS, isContractsConfigured } from "@/config/contracts";
+import { celo, celoAlfajores, sepolia } from "wagmi/chains";
 import { vegetationAnalysisService, type AnalysisResults } from "@/services/vegetationAnalysis";
 
 interface AnalysisData {
@@ -100,6 +104,37 @@ This analysis was performed using Sentinel-2 satellite imagery and verified thro
       a.remove();
     }
   };
+
+  // Optional: allow user to submit their impact score on-chain if configured
+  const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const chainId = useChainId();
+  const currentChain = chainId === celo.id ? celo : chainId === celoAlfajores.id ? celoAlfajores : chainId === sepolia.id ? sepolia : celoAlfajores;
+
+  const onSubmitImpactScore = async () => {
+    if (!isContractsConfigured()) {
+      alert("Smart contract not configured. Set VITE_CLAIMS_CONTRACT_ADDRESS in .env");
+      return;
+    }
+    if (!isConnected || !address) {
+      alert("Connect your wallet to submit impact score.");
+      return;
+    }
+    try {
+      await writeContractAsync({
+        address: CLAIMS_CONTRACT_ADDRESS as `0x${string}`,
+        abi: CLAIMS_ABI,
+        functionName: "submitImpactScore",
+        args: [address as `0x${string}`, BigInt(Math.max(0, Math.min(100, Math.round(impactScore))))],
+        chain: currentChain,
+        account: address as `0x${string}`,
+      });
+      alert("Impact score submitted on-chain.");
+    } catch (e: unknown) {
+      console.error(e);
+      alert((e as Error).message || "Failed to submit score");
+    }
+  };
   return (
     <section className="py-20">
       <div className="container mx-auto px-4">
@@ -184,9 +219,10 @@ This analysis was performed using Sentinel-2 satellite imagery and verified thro
             <Button 
               size="lg" 
               className="flex-1 bg-gradient-accent hover:opacity-90 shadow-glow"
+              onClick={onSubmitImpactScore}
             >
               <Award className="h-5 w-5 mr-2" />
-              Mint Impact NFT
+              Submit Impact Score
             </Button>
             <Button 
               size="lg" 
