@@ -22,6 +22,9 @@ export function Navbar() {
           <Link to="/" className="text-sm font-medium text-foreground hover:text-accent transition-colors">
             Home
           </Link>
+          <Link to="/claim" className="text-sm font-medium text-foreground hover:text-accent transition-colors">
+            Claim Area
+          </Link>
           <Link to="/verify" className="text-sm font-medium text-foreground hover:text-accent transition-colors">
             Verify Impact
           </Link>

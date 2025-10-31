@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { InteractiveCursor } from "@/components/InteractiveCursor";
+// Interactive cursor disabled to improve performance
 
 import Index from "./pages/Index";
+import Claim from "./pages/Claim";
 import Verify from "./pages/Verify";
 import NFTs from "./pages/NFTs";
 import Explorer from "./pages/Explorer";
@@ -15,7 +16,7 @@ import { RainbowKitWrapper } from "@/lib/rainbowkit"; // 🌈 import your provid
 const App = () => (
   <RainbowKitWrapper>
     <TooltipProvider>
-      <InteractiveCursor />
+  {/* <InteractiveCursor /> */}
       <Toaster />
       <Sonner />
 
@@ -23,6 +24,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/verify" element={<Verify />} />
+          <Route path="/claim" element={<Claim />} />
           <Route path="/nfts" element={<NFTs />} />
           <Route path="/explorer" element={<Explorer />} />
           {/* Keep custom routes above catch-all */}
