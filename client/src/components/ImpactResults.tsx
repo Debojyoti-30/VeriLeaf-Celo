@@ -5,7 +5,22 @@ import { TrendingUp, Award, CheckCircle2, Leaf, Download } from "lucide-react";
 import { useAccount, useWriteContract, useChainId } from "wagmi";
 import { CLAIMS_ABI } from "@/contracts/abis/Claims";
 import { CLAIMS_CONTRACT_ADDRESS, isContractsConfigured } from "@/config/contracts";
-import { celo, celoAlfajores, sepolia } from "wagmi/chains";
+
+// Custom Celo Sepolia Testnet chain (to align with wallet config)
+const CELO_SEPOLIA_RPC = (import.meta as any).env?.VITE_CELO_SEPOLIA_RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org';
+const celoSepolia = {
+  id: 11142220,
+  name: 'Celo Sepolia Testnet',
+  nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+  rpcUrls: {
+    default: { http: [CELO_SEPOLIA_RPC] },
+    public: { http: [CELO_SEPOLIA_RPC] },
+  },
+  blockExplorers: {
+    default: { name: 'CeloScan', url: 'https://sepolia.celoscan.io' },
+  },
+  testnet: true as const,
+};
 import { vegetationAnalysisService, type AnalysisResults } from "@/services/vegetationAnalysis";
 
 interface AnalysisData {
@@ -109,7 +124,7 @@ This analysis was performed using Sentinel-2 satellite imagery and verified thro
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const chainId = useChainId();
-  const currentChain = chainId === celo.id ? celo : chainId === celoAlfajores.id ? celoAlfajores : chainId === sepolia.id ? sepolia : celoAlfajores;
+  const currentChain = chainId === celoSepolia.id ? celoSepolia : celoSepolia;
 
   const onSubmitImpactScore = async () => {
     if (!isContractsConfigured()) {

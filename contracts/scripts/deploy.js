@@ -9,12 +9,13 @@ async function main() {
 
   const Factory = await hre.ethers.getContractFactory("VeriLeafClaims");
   const contract = await Factory.deploy(verifierArg);
-  await contract.deployed();
-  console.log("VeriLeafClaims deployed at:", contract.address);
+  await contract.waitForDeployment();
+  const address = await contract.getAddress();
+  console.log("VeriLeafClaims deployed at:", address);
 
   // For frontend env convenience
   console.log("\nSet this in client/.env:");
-  console.log("VITE_CLAIMS_CONTRACT_ADDRESS=" + contract.address);
+  console.log("VITE_CLAIMS_CONTRACT_ADDRESS=" + address);
 }
 
 main().catch((error) => {
