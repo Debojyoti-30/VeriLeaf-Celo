@@ -37,22 +37,29 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { createConfig, http, WagmiProvider } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { coinbaseWallet } from 'wagmi/connectors';
-import { mainnet, polygon, sepolia, celo, celoAlfajores } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Custom chain: Celo Sepolia Testnet (per user specification)
+const CELO_SEPOLIA_RPC = (import.meta as any).env?.VITE_CELO_SEPOLIA_RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org';
+const celoSepolia = {
+  id: 11142220,
+  name: 'Celo Sepolia Testnet',
+  nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+  rpcUrls: {
+    default: { http: [CELO_SEPOLIA_RPC] },
+    public: { http: [CELO_SEPOLIA_RPC] },
+  },
+  blockExplorers: {
+    default: { name: 'CeloScan', url: 'https://sepolia.celoscan.io' },
+  },
+  testnet: true as const,
+};
 
 // If you have Alchemy/QuickNode URLs, put them here for reliability:
 const config = createConfig({
-  chains: [celo, celoAlfajores, 
-    // mainnet, 
-    // polygon, 
-    sepolia],
-  transports: {
-    [celo.id]: http('https://forno.celo-sepolia.celo-testnet.org'),            // replace with your RPC if you have one
-    [celoAlfajores.id]: http(),
-    // [mainnet.id]: http(),
-    // [polygon.id]: http(),
-    [sepolia.id]: http(),
-  },
+  // Only target Celo Sepolia Testnet as requested
+  chains: [celoSepolia],
+  transports: { [celoSepolia.id]: http(CELO_SEPOLIA_RPC) },
   connectors: [
     injected({ shimDisconnect: true }),
     coinbaseWallet({ appName: 'VeriLeaf' }),

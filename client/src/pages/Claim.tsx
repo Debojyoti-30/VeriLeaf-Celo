@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { MapContainer, TileLayer, useMapEvents, Polygon } from "react-leaflet";
 import { stringToHex } from "viem";
 import { useAccount, useWriteContract, useChainId } from "wagmi";
-import { celo, celoAlfajores, sepolia } from "wagmi/chains";
 import { CLAIMS_ABI } from "@/contracts/abis/Claims";
 import { CLAIMS_CONTRACT_ADDRESS, isContractsConfigured } from "@/config/contracts";
 
@@ -40,7 +39,22 @@ export default function Claim() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const chainId = useChainId();
-  const currentChain = chainId === celo.id ? celo : chainId === celoAlfajores.id ? celoAlfajores : chainId === sepolia.id ? sepolia : celoAlfajores;
+  // Custom Celo Sepolia Testnet chain to match wallet config
+  const CELO_SEPOLIA_RPC = (import.meta as any).env?.VITE_CELO_SEPOLIA_RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org';
+  const celoSepolia = {
+    id: 11142220,
+    name: 'Celo Sepolia Testnet',
+    nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+    rpcUrls: {
+      default: { http: [CELO_SEPOLIA_RPC] },
+      public: { http: [CELO_SEPOLIA_RPC] },
+    },
+    blockExplorers: {
+      default: { name: 'CeloScan', url: 'https://sepolia.celoscan.io' },
+    },
+    testnet: true as const,
+  };
+  const currentChain = chainId === celoSepolia.id ? celoSepolia : celoSepolia;
 
   const currentPoints = drawing && tempPoint ? [...points, tempPoint] : points;
   const center = useMemo(() => [0, 0] as LatLng, []);
